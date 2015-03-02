@@ -1,0 +1,1228 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Go Faster</title>
+    <meta charset='utf-8'>
+    <script src='static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+
+    <section class='slides layout-widescreen'>
+      
+      <article>
+        <h1>Go Faster</h1>
+        <h3>Optimising Go Programs</h3>
+        <h3>19 February 2015</h3>
+        
+          <div class="presenter">
+            
+  
+  <p>
+    Jason Moiron
+  </p>
+  
+
+  
+  <p>
+    Programmer, Datadog, Inc. (datadoghq.com)
+  </p>
+  
+
+          </div>
+        
+      </article>
+      
+  
+  
+      <article>
+      
+        <h3>A Quote</h3>
+        
+  
+  <p>
+    &#34;There is no doubt that the grail of efficiency leads to abuse.  Programmers waste enormous amounts of time thinking about, or worrying about, the speed of noncritical parts of their programs, and these attempts at efficiency actually have a strong negative impact when debugging and maintenance are considered. We should forget about small efficiencies, say about 97% of the time [...], yet <b>we should not pass up our opportunities</b> in that critical 3%.&#34;
+  </p>
+  
+<p class="caption">Donald Knuth <a href="http://cs.sjsu.edu/~mak/CS185C/KnuthStructuredProgrammingGoTo.pdf" target="_blank">Structured Programming with go to Statements</a></p>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>The Need for Speed</h3>
+        
+<div class="image">
+  <img src="img/chart.png">
+</div>
+
+  <ul>
+  
+    <li>every timeseries <i>point</i> is a write</li>
+  
+    <li>low latency alerting, realtime graphing</li>
+  
+    <li>&#34;high cardinality&#34;</li>
+  
+    <li>lots of CPU bound work</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Measure Everything</h3>
+        
+  
+  <p>
+    Learning what to change:
+  </p>
+  
+
+  <ul>
+  
+    <li>profiling with <b>go tool pprof</b></li>
+  
+    <li>instrumentation with <b>expvar</b></li>
+  
+  </ul>
+
+  
+  <p>
+    Learning how to change it:
+  </p>
+  
+
+  <ul>
+  
+    <li>benchmark with <b>testing.B</b></li>
+  
+    <li>reading stdlib code</li>
+  
+    <li>assembly output with <b>go tool 6/8/5g</b></li>
+  
+  </ul>
+
+  
+  <p>
+    The go stdlib code is <i>not</i> scary.  Dive in!
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h2>Identifying the 3%</h2>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Profiling</h3>
+        
+  <ul>
+  
+    <li>built in sampling profiler</li>
+  
+    <li>low overhead (can run in production)</li>
+  
+  </ul>
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1">import &#34;os&#34;</span>
+<span num="2">import &#34;runtime/pprof&#34;</span>
+<span num="3"></span>
+<span num="4">func startProfile(destpath string) {</span>
+<span num="5">    f, err := os.Create(destpath)</span>
+<span num="6">    if err != nil {</span>
+<span num="7">        panic(err)</span>
+<span num="8">    }</span>
+<span num="9">    <b>pprof.StartCPUProfile(f)</b></span>
+<span num="10">}</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Profiling II</h3>
+        
+  <ul>
+  
+    <li>net/http/pprof</li>
+  
+  </ul>
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1">import (</span>
+<span num="2">    <b>_ &#34;net/http/pprof&#34;</b></span>
+<span num="3">    &#34;net/http&#34;</span>
+<span num="4">    &#34;log&#34;</span>
+<span num="5">)</span>
+<span num="6"></span>
+<span num="7">func main() {</span>
+<span num="8">    go func() {</span>
+<span num="9">        <b>log.Println(http.ListenAndServe(&#34;localhost:6060&#34;, nil))</b></span>
+<span num="10">    }</span>
+<span num="11">    ...</span>
+<span num="12">}</span>
+</pre>
+
+
+</div>
+
+  <ul>
+  
+    <li>generates 30 second profile over http</li>
+  
+  </ul>
+
+  
+  <div class="code"><pre>$ go tool pprof http://localhost:6060/debug/pprof/profile
+$ go tool pprof http://localhost:6060/debug/pprof/heap
+$ go tool pprof http://localhost:6060/debug/pprof/block</pre></div>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Using pprof output</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="2"><b>$ go tool pprof &lt;binary&gt; &lt;profile output&gt;</b></span>
+<span num="3">Welcome to pprof!  For help, type &#39;help&#39;.</span>
+<span num="4"><b>(pprof) top</b></span>
+<span num="5">Total: 462 samples</span>
+<span num="6"> <b>235  50.9%  50.9%      237  51.3% runtime.cgocall</b></span>
+<span num="7">  98  21.2%  72.1%       98  21.2% syscall.Syscall</span>
+<span num="8">  55  11.9%  84.0%       55  11.9% runtime.memmove</span>
+<span num="9">  41   8.9%  92.9%       41   8.9% hash/crc32.update</span>
+<span num="10">   7   1.5%  94.4%       11   2.4% MCentral_Grow</span>
+<span num="11">...</span>
+<span num="12"><b>(pprof) top20 --cum</b></span>
+<span num="13">Total: 462 samples</span>
+<span num="14">   0   0.0%   0.0%      458  99.1% runtime.gosched0</span>
+<span num="15">   0   0.0%   0.0%      381  82.5% main.main</span>
+<span num="16">   0   0.0%   0.0%      381  82.5% runtime.main</span>
+<span num="17">   <b>1   0.2%   0.2%      303  65.6% github.com/DataDog/dd-go/czlib.Decompress</b></span>
+<span num="18"> 235  50.9%  51.1%      237  51.3% runtime.cgocall</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Using pprof output II</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="47"><b>(pprof) list crc32.update</b></span>
+<span num="48">Total: 462 samples</span>
+<span num="49">ROUTINE ====================== hash/crc32.update in /usr/local/go/src/pkg/hash/crc32/crc32.go</span>
+<span num="50">    41     41 Total samples (flat / cumulative)</span>
+<span num="51">     .      .  101: func update(crc uint32, tab *Table, p []byte) uint32 {</span>
+<span num="52">     .      .  102:     crc = ^crc</span>
+<span num="53">     6      6  103:     for _, v := range p {</span>
+<span num="54">    <b>35     35  104:         crc = tab[byte(crc)^v] ^ (crc &gt;&gt; 8)</b></span>
+<span num="55">     .      .  105:     }</span>
+<span num="56">     .      .  106:     return ^crc</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Using pprof output III</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="21"><b>(pprof) disasm crc32.update</b></span>
+<span num="22">ROUTINE ====================== hash/crc32.update</span>
+<span num="23">    41     41 samples (flat, cumulative) 8.9% of total</span>
+<span num="24">-------------------- /usr/local/go/src/pkg/hash/crc32/crc32.go</span>
+<span num="25">     .      .   101: func update(crc uint32, tab *Table, p []byte) uint32 {</span>
+<span num="26">     .      .      50ca80: SUBQ $0x10, SP</span>
+<span num="27">     .      .      50ca84: MOVQ 0x20(SP), R9</span>
+<span num="28">     <b>.      .   102: crc = ^crc</b></span>
+<span num="29">     .      .      50ca89: MOVL 0x18(SP), AX</span>
+<span num="30">     .      .      50ca8d: XORL $-0x1, AX</span>
+<span num="31">     6      6   103: for _, v := range p {</span>
+<span num="32">(snip...)</span>
+<span num="33">    35     35   104: crc = tab[byte(crc)^v] ^ (crc &gt;&gt; 8)</span>
+<span num="34">     .      .      50caae: MOVL AX, BP</span>
+<span num="35">     .      .      50cab0: XORQ SI, BP</span>
+<span num="36">     .      .      50cab3: CMPQ $0x0, R9</span>
+<span num="37">     .      .      50cab7: JE 0x50cae5</span>
+<span num="38">     5      5      50cab9: MOVZX BP, BP</span>
+<span num="39">     1      1      50cabd: LEAQ 0(R9)(BP*4), BX</span>
+<span num="40">     5      5      50cac1: MOVL 0(BX), BX</span>
+<span num="41">    <b>21     21      50cac3: MOVL AX, BP</b></span>
+<span num="42">     1      1      50cac5: SHRL $0x8, BP</span>
+<span num="43">     .      .      50cac8: XORL BP, BX</span>
+<span num="44">     2      2      50caca: MOVL BX, AX</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Pretty Pictures</h3>
+        
+  
+  <div class="code"><pre>$ go tool pprof -ps &lt;binary&gt; &lt;profile path&gt;</pre></div>
+  
+
+<div class="image">
+  <img src="img/mouzone-pprof.png" width="700">
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Expvar</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1"><b>import &#34;expvar&#34;</b></span>
+<span num="2"></span>
+<span num="3">var cache map[string]*Thing</span>
+<span num="4">var requests int</span>
+<span num="5"></span>
+<span num="6">func expose() {</span>
+<span num="7">    <b>go http.ListenAndServe(&#34;localhost:6060&#34;, nil)</b></span>
+<span num="8"></span>
+<span num="9">    requestCount := expvar.NewInt(&#34;requestCount&#34;)</span>
+<span num="10">    cacheSize := expvar.NewInt(&#34;cacheSize&#34;)</span>
+<span num="11">    for _ = range &lt;- time.Tick(5 * time.Second) {</span>
+<span num="12">        <b>requestCount.Set(requests)</b></span>
+<span num="13">        <b>cacheSize.Set(len(cache))</b></span>
+<span num="14">    }</span>
+<span num="15">}</span>
+</pre>
+
+
+</div>
+
+  
+  <p>
+    Expose variables on a simple json HTTP interface:
+  </p>
+  
+
+  
+  <div class="code"><pre>$ curl http://localhost:6060/debug/vars
+{ &#34;cacheSize&#34;: 421, &#34;requestCount&#34;: 10332, ...}</pre></div>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Expvar II</h3>
+        
+  
+  <p>
+    Measure things relevant to you:
+  </p>
+  
+
+  <ul>
+  
+    <li>channel lengths</li>
+  
+    <li>throughput</li>
+  
+    <li>cache sizes</li>
+  
+  </ul>
+
+  
+  <p>
+    Free stats:
+  </p>
+  
+
+  <ul>
+  
+    <li>command line</li>
+  
+    <li>allocation stats</li>
+  
+    <li>heap stats</li>
+  
+    <li>gc stats</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>In the wild</h3>
+        
+  
+  <p>
+    Queue processing daemon called &#34;mouzone&#34;
+  </p>
+  
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1">func mouzone(messages chan msg) {</span>
+<span num="2">    parsed := make(chan parsedMsg, 50)</span>
+<span num="3">    resolved := make(chan resolvedMsg, 50)</span>
+<span num="4">    go func() {</span>
+<span num="5">        for msg := range messages {</span>
+<span num="6">            <b>parsed &lt;- parse(msg)</b></span>
+<span num="7">        }</span>
+<span num="8">    }()</span>
+<span num="9">    go func() {</span>
+<span num="10">        for msg := range parsed {</span>
+<span num="11">            <b>resolved &lt;- resolve(msg)</b></span>
+<span num="12">        }</span>
+<span num="13">    }()</span>
+<span num="14">    for msg := range resolved {</span>
+<span num="15">        // ...</span>
+<span num="16">    }</span>
+<span num="17">}</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>In the wild: Measuring Everything</h3>
+        
+<div class="image">
+  <img src="charts/before.png" width="550">
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>In the wild: Profiling</h3>
+        
+<div class="image">
+  <img src="img/mouzone-pprof.png" width="700">
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>In the wild: Measuring Everything II</h3>
+        
+<div class="image">
+  <img src="charts/after.png" width="550">
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h2>Writing faster code</h2>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Benchmarking</h3>
+        
+  
+  <p>
+    Benchmarks are short, repeatable timing tests.
+  </p>
+  
+
+  
+  <div class="code"><pre>func BenchmarkZlib(b *testing.B) {
+    for i:=0; i&lt;b.N; i&#43;&#43; {
+    // ...
+    }
+}</pre></div>
+  
+
+  
+  <p>
+    Run them with <code>go test -bench</code>
+  </p>
+  
+
+  
+  <div class="code"><pre>$ go test -bench . -benchmem
+...
+BenchmarkFzlibDecompress         300       4849825 ns/op      942101 B/op           1 allocs/op
+BenchmarkCzlibDecompress         300       5354454 ns/op     2128336 B/op          16 allocs/op
+BenchmarkZlibDecompress          100      14694251 ns/op     2141291 B/op          59 allocs/op
+BenchmarkFzlibCompress            20      58481874 ns/op      262156 B/op           1 allocs/op
+BenchmarkCzlibCompress            20      58993665 ns/op      639292 B/op           7 allocs/op
+BenchmarkZlibCompress             10     167576430 ns/op     2455070 B/op        1026 allocs/op</pre></div>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Benchmarking II</h3>
+        
+  
+  <p>
+    Lets use benchmarking to explore Go:
+  </p>
+  
+
+  <ul>
+  
+    <li>structs vs maps</li>
+  
+    <li>map key types</li>
+  
+    <li>heap &amp; stack allocation</li>
+  
+  </ul>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Structs vs Maps</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="7">func BenchmarkMapAccess(b *testing.B) {</span>
+<span num="8">    <b>m := map[int]int{0: 0, 1: 1}</b></span>
+<span num="9">    for i := 0; i &lt; b.N; i&#43;&#43; {</span>
+<span num="10">        _ = m[0] &#43; m[1]</span>
+<span num="11">    }</span>
+<span num="12">}</span>
+</pre>
+
+
+</div>
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="21">func BenchmarkStructAccess(b *testing.B) {</span>
+<span num="22">    <b>m := struct{ a, b int }{0, 1}</b></span>
+<span num="23">    for i := 0; i &lt; b.N; i&#43;&#43; {</span>
+<span num="24">        _ = m.a &#43; m.b</span>
+<span num="25">    }</span>
+<span num="26">}</span>
+</pre>
+
+
+</div>
+
+  
+  <div class="code"><pre>$ go test -bench .
+...
+BenchmarkMapAccess     100000000        13.00 ns/op
+BenchmarkStructAccess  500000000         0.63 ns/op</pre></div>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Structs vs Maps: ASM</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre class="numbers"><span num="1">package main</span>
+<span num="2"></span>
+<span num="3">func main() {</span>
+<span num="4">    <b>x := struct{ a, b int }{0xaa, 0xbb}</b></span>
+<span num="5">    <b>b := x.a &#43; x.b</b></span>
+<span num="6">    println(b)</span>
+<span num="7">}</span>
+</pre>
+
+
+</div>
+
+  
+  <p>
+    We can see how this works by looking at the ASM output w/ <b>go tool 6g -S</b>
+  </p>
+  
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1">&#34;&#34;.main t=1 size=80 value=0 args=0x0 locals=0x18</span>
+<span num="2">    ; go has optimised some stuff away; use -N to turn it off</span>
+<span num="3">    0x001a 00026 (structvmap.go:4)    MOVQ    $170,BX</span>
+<span num="4">    0x0021 00033 (structvmap.go:4)    MOVQ    $187,AX</span>
+<span num="5">    0x0028 00040 (structvmap.go:5)    MOVQ    BX,&#34;&#34;.x&#43;8(SP)</span>
+<span num="6">    0x002d 00045 (structvmap.go:5)    MOVQ    AX,&#34;&#34;.x&#43;16(SP)</span>
+<span num="7">    0x0032 00050 (structvmap.go:5)    ADDQ    AX,BX</span>
+<span num="8">    ; ...</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Structs vs Maps: ASM II</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre class="numbers"><span num="1">package main</span>
+<span num="2"></span>
+<span num="3">func main() {</span>
+<span num="4">    x := map[string]int{&#34;a&#34;: 0xaa, &#34;b&#34;: 0xbb}</span>
+<span num="5">    <b>b := x[&#34;a&#34;] &#43; x[&#34;b&#34;]</b></span>
+<span num="6">    println(b)</span>
+<span num="7">}</span>
+</pre>
+
+
+</div>
+
+  
+  <p>
+    asm output for line 5:
+  </p>
+  
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1">&#34;&#34;.main t=1 size=336 value=0 args=0x0 locals=0x58</span>
+<span num="2">    ; snip</span>
+<span num="3">    0x00a4 00164 (structvmap2.go:5)    LEAQ    go.string.&#34;a&#34;&#43;0(SB),BX</span>
+<span num="4">    0x00ab 00171 (structvmap2.go:5)    MOVQ    (BX),CX</span>
+<span num="5">    0x00ae 00174 (structvmap2.go:5)    MOVQ    8(BX),BP</span>
+<span num="6">    0x00b2 00178 (structvmap2.go:5)    MOVQ    $type.map[string]int&#43;0(SB),BX</span>
+<span num="7">    ; snip a bunch of copying to temp variables</span>
+<span num="8">    <b>0x00db 00219 (structvmap2.go:5)    CALL    ,runtime.mapaccess1_faststr(SB)</b></span>
+<span num="9">    ; snip some more temp vars, val copied to tmp</span>
+<span num="10">    0x00e8 00232 (structvmap2.go:5)    MOVQ    BP,&#34;&#34;.autotmp_0001&#43;40(SP)</span>
+<span num="11">    0x00ed 00237 (structvmap2.go:5)    LEAQ    go.string.&#34;b&#34;&#43;0(SB),BX</span>
+<span num="12">    ; same map access dance for &#34;b&#34;</span>
+<span num="13">    0x0136 00310 (structvmap2.go:5)    ADDQ    BP,BX</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Structs vs Maps: ASM III</h3>
+        
+  
+  <p>
+    The uncut assembly for Lines 4 &amp; 5
+  </p>
+  
+
+<div class="image">
+  <img src="img/smvasm.png" width="500">
+</div>
+<p class="caption"><b>Full</b> program readout is 138 LOC vs 1058 LOC.</p>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>More on Maps</h3>
+        
+  
+  <p>
+    Maps are hash tables.  Lookup involves:
+  </p>
+  
+
+  <ul>
+  
+    <li>hashing the key</li>
+  
+    <li>using the hash to find a bucket</li>
+  
+    <li>traversing the bucket to find the key</li>
+  
+    <li>returning a <i>copy</i> of the value</li>
+  
+  </ul>
+
+  
+  <p>
+    Writing is similar.
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>String keys vs Struct Keys</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="7">func BenchmarkStringKeys(b *testing.B) {</span>
+<span num="8">    s, n := &#34;reasonably-long-but-present-unique-identifier&#34;, &#34;non-present-unique-id&#34;</span>
+<span num="9">    <b>m := map[string]struct{}{s: empty}</b></span>
+<span num="10">    for i := 0; i &lt; b.N; i&#43;&#43; {</span>
+<span num="11">        _, _ = m[s]</span>
+<span num="12">        _, _ = m[n]</span>
+<span num="13">    }</span>
+<span num="14">}</span>
+</pre>
+
+
+</div>
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="24">func BenchmarkStructKeys(b *testing.B) {</span>
+<span num="25">    type key struct{ a, b int }</span>
+<span num="26">    k, n := key{0, 1}, key{1, 2}</span>
+<span num="27">    <b>m := map[key]struct{}{k: empty}</b></span>
+<span num="28">    for i := 0; i &lt; b.N; i&#43;&#43; {</span>
+<span num="29">        _, _ = m[k]</span>
+<span num="30">        _, _ = m[n]</span>
+<span num="31">    }</span>
+<span num="32">}</span>
+</pre>
+
+
+</div>
+
+  
+  <div class="code"><pre>$ go test -bench .
+...
+BenchmarkStringKeys     100000000        22.8 ns/op
+BenchmarkStructKeys     20000000         93.2 ns/op</pre></div>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>String keys vs Struct keys: Profile</h3>
+        
+  
+  <p>
+    Lets profile our benchmarks and see what&#39;s going on:
+  </p>
+  
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1">$ cd bench/</span>
+<span num="2"><b>$ go test -c</b></span>
+<span num="3">$ ./bench.test -test.bench=&#34;StringKeys&#34; -test.cpuprofile=&#34;stringkeys.pprof&#34;</span>
+<span num="4">$ ./bench.test -test.bench=&#34;StructKeys&#34; -test.cpuprofile=&#34;structkeys.pprof&#34;</span>
+<span num="5">$ go tool pprof --ps bench.test stringkeys.pprof &gt; stringkeys.ps</span>
+<span num="6">$ go tool pprof --ps bench.test structkeys.pprof &gt; structkeys.ps</span>
+</pre>
+
+
+</div>
+
+  
+  <p>
+    Output for stringkeys.ps:
+  </p>
+  
+
+<div class="image">
+  <img src="img/string-keys-prof.png" width="500">
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>String keys vs Struct keys: Profile II</h3>
+        
+  
+  <p>
+    Output for structkeys.ps:
+  </p>
+  
+
+<div class="image">
+  <img src="img/struct-keys-prof.png" width="550">
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>String keys vs Struct keys: The source!</h3>
+        
+  
+  <p>
+    Not related to hashing:
+  </p>
+  
+
+  
+  <div class="code"><pre>// src/runtime/alg.go
+func strhash(a unsafe.Pointer, s, h uintptr) uintptr {
+    return memhash((*stringStruct)(a).str, uintptr(len(*(*string)(a))), h)
+}</pre></div>
+  
+
+  
+  <p>
+    <code>runtime·aeshashstr</code> is almost identical to <code>runtime·aeshash</code> 
+  </p>
+  
+
+  
+  <p>
+    <b>src/runtime/hashmap_fast.go</b> has a number of fast paths:
+  </p>
+  
+
+  <ul>
+  
+    <li>mapaccess(1,2)_fast32 for 32bit ints</li>
+  
+    <li>mapaccess(1,2)_fast64 for 64bit ints</li>
+  
+    <li>mapaccess(1,2)_faststr for strings</li>
+  
+  </ul>
+
+  
+  <p>
+    Map overhead reduced for these common key types.
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Heap &amp; Stack Allocation</h3>
+        
+  <ul>
+  
+    <li>stack allocation is static</li>
+  
+    <li>heap allocation goes through dynamic allocator</li>
+  
+    <li>heap allocated variables must be GC&#39;d</li>
+  
+  </ul>
+
+  
+  <p>
+    &#34;When possible, the Go compilers will allocate variables that are local to a function in that function&#39;s stack frame.&#34;
+  </p>
+  
+<p class="caption"><a href="http://golang.org/doc/faq#stack_or_heap" target="_blank">How do I know whether a variable is allocated on the heap or the stack?</a></p>
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Heap &amp; Stack Allocation II</h3>
+        
+  
+  <p>
+    Let&#39;s compare two simple functions that allocate and return 1K:
+  </p>
+  
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="5">func stacked() [128]int64 {</span>
+<span num="6">    return [128]int64{}</span>
+<span num="7">}</span>
+</pre>
+
+
+</div>
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="9">func heaped() *[128]int64 {</span>
+<span num="10">    return &amp;[128]int64{}</span>
+<span num="11">}</span>
+</pre>
+
+
+</div>
+
+  
+  <div class="code"><pre>$ go test -bench Alloc
+BenchmarkStackAlloc     10000000           133 ns/op
+BenchmarkHeapAlloc      20000000            83.5 ns/op</pre></div>
+  
+
+  
+  <p>
+    Curious...  Is it because returning an 8-byte pointer is cheaper than a 1K buffer?
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Tricking yourself</h3>
+        
+  
+  <p>
+    You have to be careful that your benchmarks test what you <i>think</i> they are testing.  Lets see what the go compiler is doing:
+  </p>
+  
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1"><b>$ go test -gcflags=&#34;-m&#34; -bench Alloc</b></span>
+<span num="2">./stack_test.go:5: can inline stacked</span>
+<span num="3">./stack_test.go:9: can inline heaped</span>
+<span num="4">./stack_test.go:15: inlining call to stacked</span>
+<span num="5">./stack_test.go:21: inlining call to heaped</span>
+<span num="6"><b>./stack_test.go:10: &amp;[128]int64 literal escapes to heap</b></span>
+<span num="7">./stack_test.go:13: BenchmarkStackAlloc b does not escape</span>
+<span num="8">./stack_test.go:19: BenchmarkHeapAlloc b does not escape</span>
+<span num="9"><b>./stack_test.go:21: heaped &amp;[128]int64 literal does not escape</b></span>
+</pre>
+
+
+</div>
+
+  
+  <p>
+    There are more compiler flags available, use <b>go tool 6g --help</b> for a list.  Let&#39;s try again with optimisations and inlining off:
+  </p>
+  
+
+  
+  <div class="code"><pre>$ go test -gcflags=&#34;-N -l&#34; -bench Alloc
+BenchmarkStackAlloc     10000000           135 ns/op
+BenchmarkHeapAlloc      500000            3146 ns/op</pre></div>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Heap &amp; Stack Allocation: ASM</h3>
+        
+  
+  <p>
+    Lets see the asm: <code>go tool 6g -S -N -l stack_test.go</code>
+  </p>
+  
+
+  
+  <p>
+    stacked:
+  </p>
+  
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1"><b>&#34;&#34;.stacked t=1 size=96 value=0 args=0x400 locals=0x400</b></span>
+<span num="2">    ; snip</span>
+<span num="3">    0x0034 00052 (stack_test.go:6)    LEAQ    &#34;&#34;.autotmp_0000&#43;0(SP),DI</span>
+<span num="4">    0x0038 00056 (stack_test.go:6)    MOVL    $0,AX</span>
+<span num="5">    0x003a 00058 (stack_test.go:6)    DUFFZERO    ,$</span>
+<span num="6">    0x003f 00063 (stack_test.go:6)    LEAQ    &#34;&#34;.autotmp_0000&#43;0(SP),BX</span>
+<span num="7">    0x0043 00067 (stack_test.go:6)    LEAQ    &#34;&#34;.~r0&#43;1032(FP),BP</span>
+<span num="8">    0x004b 00075 (stack_test.go:6)    MOVQ    BP,DI</span>
+<span num="9">    0x004e 00078 (stack_test.go:6)    MOVQ    BX,SI</span>
+<span num="10">    0x0051 00081 (stack_test.go:6)    DUFFCOPY    ,$</span>
+<span num="11">    0x0056 00086 (stack_test.go:6)    ADDQ    $1024,SP</span>
+<span num="12">    0x005d 00093 (stack_test.go:6)    RET    ,</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Heap &amp; Stack Allocation: ASM II</h3>
+        
+  
+  <p>
+    heaped:
+  </p>
+  
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="14"><b>&#34;&#34;.heaped t=1 size=112 value=0 args=0x8 locals=0x18</b></span>
+<span num="15">    ;snip</span>
+<span num="16">    0x0023 00035 (stack_test.go:10)    MOVQ    $type.[128]int64&#43;0(SB),BX</span>
+<span num="17">    0x002a 00042 (stack_test.go:10)    MOVQ    BX,(SP)</span>
+<span num="18">    0x002e 00046 (stack_test.go:10)    PCDATA    $0,$0</span>
+<span num="19">    <b>0x002e 00046 (stack_test.go:10)    CALL    ,runtime.newobject(SB)</b></span>
+<span num="20">    0x0033 00051 (stack_test.go:10)    MOVQ    8(SP),BX</span>
+<span num="21">    0x0038 00056 (stack_test.go:10)    MOVQ    BX,&#34;&#34;.autotmp_0001&#43;16(SP)</span>
+<span num="22">    0x003d 00061 (stack_test.go:10)    MOVQ    &#34;&#34;.autotmp_0001&#43;16(SP),DI</span>
+<span num="23">    0x0042 00066 (stack_test.go:10)    CMPQ    DI,$0</span>
+<span num="24">    0x0046 00070 (stack_test.go:10)    JEQ    $1,94</span>
+<span num="25">    0x0048 00072 (stack_test.go:10)    MOVL    $0,AX</span>
+<span num="26">    0x004a 00074 (stack_test.go:10)    DUFFZERO    ,$</span>
+<span num="27">    0x004f 00079 (stack_test.go:10)    MOVQ    &#34;&#34;.autotmp_0001&#43;16(SP),BX</span>
+<span num="28">    0x0054 00084 (stack_test.go:10)    MOVQ    BX,&#34;&#34;.~r0&#43;32(FP)</span>
+<span num="29">    0x0059 00089 (stack_test.go:10)    ADDQ    $24,SP</span>
+<span num="30">    0x005d 00093 (stack_test.go:10)    RET    ,</span>
+<span num="31">    0x005e 00094 (stack_test.go:10)    MOVL    AX,(DI)</span>
+<span num="32">    0x0060 00096 (stack_test.go:10)    JMP    ,72</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>In Summary</h3>
+        
+  
+  <p>
+    Measure, don&#39;t guess:
+  </p>
+  
+
+  
+  <p>
+    &#34;Intuition == guessing == being wrong and thinking you&#39;re awesome&#34; - <a href="https://botbot.me/freenode/go-nuts/2014-01-31/?msg=10375769&amp;page=8" target="_blank">Dustin Sallings</a>
+  </p>
+  
+
+  
+  <p>
+    Real programs have complex interactions that are hard to visualize:
+  </p>
+  
+
+  <ul>
+  
+    <li>impact of the scheduler</li>
+  
+    <li>cpu cache utilization</li>
+  
+    <li>cost of allocation</li>
+  
+    <li>interaction between your program and the OS</li>
+  
+    <li>behavior of dependent networked systems (eg. dbs)</li>
+  
+    <li>properties of <i>actual</i> workload as it evolves</li>
+  
+    <li>garbage production &amp; GC pauses</li>
+  
+  </ul>
+
+  
+  <p>
+    But <i>all</i> are measurable.
+  </p>
+  
+
+      
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Bonus Round</h3>
+        
+  
+  <p>
+    Quiz:
+  </p>
+  
+
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1">package main</span>
+<span num="2"></span>
+<span num="3">import &#34;math&#34;</span>
+<span num="4"></span>
+<span num="5">func main() {</span>
+<span num="6">    NaN := math.NaN()</span>
+<span num="7">    m := map[float64]bool{NaN: true, NaN: true, NaN: false}</span>
+<span num="8">    println(len(m))</span>
+<span num="9">}</span>
+</pre>
+
+
+</div>
+
+      
+      </article>
+  
+  
+
+      <article>
+        <h3>Thank you</h1>
+        
+          <div class="presenter">
+            
+  
+  <p>
+    Jason Moiron
+  </p>
+  
+
+  
+  <p>
+    Programmer, Datadog, Inc. (datadoghq.com)
+  </p>
+  
+<p class="link"><a href="mailto:jmoiron@jmoiron.net" target="_blank">jmoiron@jmoiron.net</a></p><p class="link"><a href="http://jmoiron.net" target="_blank">http://jmoiron.net</a></p><p class="link"><a href="http://twitter.com/jmoiron" target="_blank">@jmoiron</a></p>
+          </div>
+        
+      </article>
+
+  </body>
+  
+</html>
