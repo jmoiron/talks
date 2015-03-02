@@ -1,2 +1,3 @@
+# talks
 
-[go-faster](/go-faster/)
+[go-faster](/talks/go-faster/)
