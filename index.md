@@ -1,0 +1,2 @@
+
+[go-faster](/go-faster/)
