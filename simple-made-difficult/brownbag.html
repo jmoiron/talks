@@ -1,0 +1,694 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simple made Difficult</title>
+    <meta charset='utf-8'>
+    <script src='static/slides.js'></script>
+  </head>
+
+  <body style='display: none'>
+
+    <section class='slides layout-widescreen'>
+      
+      <article>
+        <h1>Simple made Difficult</h1>
+        
+        <h3>6 September 2018</h3>
+        
+          <div class="presenter">
+            
+  
+  <p>
+    Jason Moiron
+  </p>
+  
+
+  
+  <p>
+    Staff Engineer for metrics stuff
+  </p>
+  
+
+          </div>
+        
+      </article>
+      
+  
+  
+      <article>
+      
+        <h3>Some Quotes</h3>
+        
+  
+  <p>
+    &#34;[..] Everything simple is made too complicated because it&#39;s easy to fiddle with;
+<br>
+
+    everything complicated stays complicated because it&#39;s hard to fix.&#34;
+  </p>
+  
+<p class="caption">Rob Pike</p>
+  
+  <p>
+    &#34;Je n’ai fait celle-ci plus longue que parce que je n’ai pas eu le loisir de la faire plus courte.&#34;
+  </p>
+  
+<p class="caption">Blaise Pascal</p>
+      
+      <div class="pagenumber">[1]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>The origins of Go</h3>
+        
+  
+  <p>
+    The main goal was to enable programmers at Google to write the type of software commonly written at Google by the types of people at Google.
+  </p>
+  
+
+  <ul>
+  
+    <li>networked services</li>
+  
+    <li>lots of parallelism</li>
+  
+    <li>scalability</li>
+  
+    <li>static types (for &#34;programming in the large&#34;)</li>
+  
+    <li>usable by programmers of varying degrees of experience</li>
+  
+  </ul>
+
+  
+  <p>
+    We (datadog) shared nearly all of these goals, with one extra one, being finding a way out of performance traps in Python.
+  </p>
+  
+
+      
+      <div class="pagenumber">[2]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Design Philosophy</h3>
+        
+  <ul>
+  
+    <li><b>simplicity</b></li>
+  
+    <li>safety (memory)</li>
+  
+    <li>readability</li>
+  
+    <li>orthogonality (TOOWTDI)</li>
+  
+  </ul>
+
+  
+  <p>
+    But still modern:
+  </p>
+  
+
+  <ul>
+  
+    <li>modules/packages</li>
+  
+    <li>closures</li>
+  
+    <li>interfaces</li>
+  
+    <li>multiprocessing</li>
+  
+  </ul>
+
+      
+      <div class="pagenumber">[3]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Simple?</h3>
+        
+<div class="image">
+  <img src="keywords.png" width="800">
+</div>
+
+      
+      <div class="pagenumber">[4]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Simplifications over C&#43;&#43;</h3>
+        
+<div class="image">
+  <img src="golack.png" width="800">
+</div>
+<p class="caption">Rob Pike, <a href="https://commandcenter.blogspot.com/2012/06/less-is-exponentially-more.html" target="_blank">Less is Exponentially More</a></p>
+      
+      <div class="pagenumber">[5]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Making Decisions</h3>
+        
+  
+  <p>
+    When making a decision, we:
+  </p>
+  
+
+  <ul>
+  
+    <li>figure out your goal or goals</li>
+  
+    <li>evaluate its importance</li>
+  
+    <li>enumarate your options</li>
+  
+    <li>evaluate how likely each option will meet your goals</li>
+  
+    <li>pick the winning option</li>
+  
+    <li>modify your goals</li>
+  
+  </ul>
+<p class="caption">Barry Schwartz, &#34;The Paradox of Choice&#34;</p>
+      
+      <div class="pagenumber">[6]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Making Decisions II</h3>
+        
+  
+  <p>
+    Go makes a lot of decisions for you:
+  </p>
+  
+
+  <ul>
+  
+    <li>how to name your files and directories</li>
+  
+    <li>how packages are laid out on disk</li>
+  
+    <li>how to build your code</li>
+  
+    <li>the formatting style of your code (if you use gofmt)</li>
+  
+    <li>your documentation style (if you use golint)</li>
+  
+  </ul>
+
+      
+      <div class="pagenumber">[7]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Making decisions III</h3>
+        
+  
+  <p>
+    use gofmt and golint
+  </p>
+  
+
+<div class="image">
+  <img src="youmust.png" width="600">
+</div>
+
+      
+      <div class="pagenumber">[8]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Making Decisions IV</h3>
+        
+  
+  <p>
+    Datadog makes a lot of decisions for you:
+  </p>
+  
+
+  <ul>
+  
+    <li>repo layout</li>
+  
+    <li>deployment/infra tools</li>
+  
+    <li>rpc protocol</li>
+  
+    <li>configuration</li>
+  
+    <li>test harness/runner</li>
+  
+    <li>deployment</li>
+  
+    <li>what language(s) to use</li>
+  
+  </ul>
+
+      
+      <div class="pagenumber">[9]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Making Decisions: Exciting conclusion</h3>
+        
+  
+  <p>
+    If you&#39;re writing a library:
+  </p>
+  
+
+  <ul>
+  
+    <li>stick to as many conventions as possible</li>
+  
+    <li>make decisions on your users behalf</li>
+  
+  </ul>
+
+      
+      <div class="pagenumber">[10]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Simplicity in the small</h3>
+        
+  
+  <p>
+    Rob Pike&#39;s rules of programming (abridged):
+  </p>
+  
+
+  
+  <p>
+    1. You can&#39;t tell where a program is going to spend its time.  Bottlenecks occur in surprising places.
+<br>
+
+    2. Measure.  Don&#39;t tune for speed until you&#39;ve measured.
+<br>
+
+    3. Fancy algorithms are slow when n is small, and n is usually small
+<br>
+
+    4. Fancy algorithms are buggier than simple ones, and harder to implement.  Use simple algorithms and simple data structures.
+<br>
+
+    5. Data dominates.  If you&#39;ve chosen the right data structures, the algorithms will almost always be self-evident.
+  </p>
+  
+<p class="caption">Rob Pike <a href="https://www.lysator.liu.se/c/pikestyle.html" target="_blank">Notes on programming in C</a></p>
+      
+      <div class="pagenumber">[11]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>How is this relevant?</h3>
+        
+  
+  <p>
+    Simple things tend to be <i>fast</i>
+  </p>
+  
+
+  <ul>
+  
+    <li>they are easy to understand</li>
+  
+    <li>understanding provides transparency</li>
+  
+    <li>transparency lets you use apply abstractions while maintaining efficiency</li>
+  
+    <li>upstream, the focus is on improving perf for &#34;normal&#34; code</li>
+  
+  </ul>
+
+      
+      <div class="pagenumber">[12]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Comparing Simple Things</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1">class Foo(object):</span>
+<span num="2">    def __init__(self, x, y):</span>
+<span num="3">        self.x = x</span>
+<span num="4">        self.y = y</span>
+<span num="5"></span>
+<span num="6">f = Foo(1, 2)</span>
+</pre>
+
+
+</div>
+
+  
+  <p>
+    This is pretty simple looking code.
+  </p>
+  
+<p class="caption">From the excellent <a href="https://amir.rachum.com/blog/2016/10/03/understanding-python-class-instantiation/" target="_blank">Understanding Python Class Instantiation</a></p>
+      
+      <div class="pagenumber">[13]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Comparing Simple Things: Python</h3>
+        
+  
+  <p>
+    What does Foo(1, 2) do? 
+  </p>
+  
+
+  <ul>
+  
+    <li>Method invocation triggers <code>Foo.__call__</code> </li>
+  
+    <li>Foo is type <b>type</b>, so we get <code>type.__call__</code>(Foo, ..)</li>
+  
+    <li>The method <code>type.__call__</code>(Foo, ..) calls <code>type.__new__</code>(Foo, ..) to allocate new Foo f</li>
+  
+    <li>f is initialized by calling <code>f.__init__</code>(*args, **kwargs)</li>
+  
+    <li>f is then returned</li>
+  
+  </ul>
+
+      
+      <div class="pagenumber">[14]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Comparing Simple Things: Python</h3>
+        
+  
+  <p>
+    For CPython, <code>type.__call__</code> is implemented in C:
+  </p>
+  
+
+<div class="image">
+  <img src="typeobj.png" height="400">
+</div>
+<p class="caption"><a href="https://github.com/python/cpython/blob/master/Objects/typeobject.c#L911" target="_blank">typeobject.c</a></p>
+      
+      <div class="pagenumber">[15]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Comparing Simple Things: Go</h3>
+        
+  <div class="code" contenteditable="true" spellcheck="false">
+
+
+<pre><span num="1">type Foo struct {</span>
+<span num="2">    x int</span>
+<span num="3">    y int</span>
+<span num="4">}</span>
+<span num="5"></span>
+<span num="6">f := Foo{x: 1, y: 2}</span>
+</pre>
+
+
+</div>
+
+      
+      <div class="pagenumber">[16]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Comparing Simple Things: Go (Impl)</h3>
+        
+  
+  <p>
+    Run `go tool compile -S` to see the asm implementation:
+  </p>
+  
+
+  
+  <div class="code"><pre>0x0000 00000 (foo.go:6)    TEXT    &#34;&#34;.stuff(SB), NOSPLIT, $0-16
+0x0000 00000 (foo.go:6)    FUNCDATA    $0, gclocals·f207267fbf96a0178e8758c6e3e0ce28(SB)
+0x0000 00000 (foo.go:6)    FUNCDATA    $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+0x0000 00000 (foo.go:8)    MOVQ    $1, &#34;&#34;.~r0&#43;8(SP)
+0x0009 00009 (foo.go:8)    MOVQ    $2, &#34;&#34;.~r0&#43;16(SP)
+0x0012 00018 (foo.go:8)    RET</pre></div>
+  
+
+      
+      <div class="pagenumber">[17]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Comparing Simple Things: Go (Maps)</h3>
+        
+  
+  <p>
+    What if we wrote it like this instead:
+  </p>
+  
+
+  
+  <div class="code"><pre>f := map[string]int{&#34;x&#34;: 1, &#34;y&#34;: 2}</pre></div>
+  
+
+  
+  <p>
+    We didn&#39;t need to declare a type, it&#39;s simpler right?
+  </p>
+  
+
+      
+      <div class="pagenumber">[18]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Comparing Simple Things: Go (Maps II)</h3>
+        
+<div class="image">
+  <img src="smvasm.png" width="750">
+</div>
+
+      
+      <div class="pagenumber">[19]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Simple made Difficult:</h3>
+        
+  
+  <div class="code"><pre>for x in xs:
+    x.y()</pre></div>
+  
+
+  
+  <p>
+    What does this do?
+  </p>
+  
+
+      
+      <div class="pagenumber">[20]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>Simplicity in the Large</h3>
+        
+  <ul>
+  
+    <li>well-defined interfaces all the way down</li>
+  
+    <li>close to the platform border as often as possible (shallow stacks)</li>
+  
+    <li>abstractions make sense in isolation</li>
+  
+    <li>specializers are usually too complex to get reused</li>
+  
+    <li>context is king</li>
+  
+  </ul>
+
+  
+  <p>
+    Assume nobody will want to reuse your code.
+  </p>
+  
+
+  
+  <p>
+    But write it like they will.
+  </p>
+  
+
+      
+      <div class="pagenumber">[21]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>The wool over our eyes</h3>
+        
+  
+  <p>
+    Real programs may be simple, but they run on complex systems:
+  </p>
+  
+
+  <ul>
+  
+    <li>impact of the scheduler</li>
+  
+    <li>cpu cache utilization</li>
+  
+    <li>impact of branch prediction (lol)</li>
+  
+    <li>cost of allocation</li>
+  
+    <li>interaction between your program and the OS</li>
+  
+    <li>behavior of dependent networked systems (eg. dbs)</li>
+  
+    <li>properties of <i>actual</i> workload as it evolves</li>
+  
+    <li>garbage collection</li>
+  
+  </ul>
+
+      
+      <div class="pagenumber">[22]</div>
+      </article>
+  
+  
+  
+      <article>
+      
+        <h3>In Summary</h3>
+        
+  <ul>
+  
+    <li>with Go, simplicity is a foundational goal</li>
+  
+    <li>write opaque abstractions that are transparent about implementation</li>
+  
+    <li>be deliberate up front about performance</li>
+  
+    <li>but measure often anyway;  don&#39;t guess</li>
+  
+    <li>&#34;normal&#34; code is better in the long run</li>
+  
+  </ul>
+
+  
+  <p>
+    your problem domain and applying your experience to not write code that does
+<br>
+
+    dumb things accidentally.
+  </p>
+  
+
+  
+  <p>
+    the inliner might stop working.
+  </p>
+  
+
+      
+      <div class="pagenumber">[23]</div>
+      </article>
+  
+  
+
+      <article>
+        <h3>Thank you</h1>
+        
+          <div class="presenter">
+            
+  
+  <p>
+    Jason Moiron
+  </p>
+  
+
+  
+  <p>
+    Staff Engineer for metrics stuff
+  </p>
+  
+<p class="link"><a href="http://twitter.com/jason%20on%20slack" target="_blank">@jason on slack</a></p><p class="link"><a href="http://twitter.com/jmoiron%20everwhere%20else" target="_blank">@jmoiron everwhere else</a></p>
+          </div>
+        
+      </article>
+
+  </body>
+  
+</html>
