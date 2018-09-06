@@ -9,6 +9,3 @@ This is a talk I gave about optimizing Go programs at Gophercon India 2015.  The
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/IkoUarC1Mcg" frameborder="0" allowfullscreen></iframe>
 
-## 2015 10 02 - "The Network is the Computer"
-
-This is a talk I will give soon at [Gotham Go](http://gothamgo.com/).  It is about architecting Go programs and how Go allows us to build programs using much of the same language and idioms that have been successfully brought to bear on architecture both in the large and the small in the last 40 years of software engineering.
