@@ -1,14 +1,15 @@
-Understanding Go
+Simple made Difficult
 6 Sep 2018
 Tags: go golang design philosophy
 
 Jason Moiron
-Staff Engineer
+Staff Engineer for metrics stuff
 @jason on slack
-@jmoiron on twitter
-jmoiron.net on the INTERNET
+@jmoiron everwhere else
 
 * Some Quotes
+
+: I like to start off with quotes, because I want to set the tone that nothing in my talks is original and I've stolen most everything.
 
 "[..] Everything simple is made too complicated because it's easy to fiddle with;
 everything complicated stays complicated because it's hard to fix."
@@ -19,9 +20,9 @@ everything complicated stays complicated because it's hard to fix."
 
 .caption Blaise Pascal
 
+: It's difficult to make simple things, but it's worth it.
 
-: A lot of our backend here at Datadog is written in Go.  This means a lot of us here program in it daily, but some of us use it only rarely and still others begrudgingly.  I wanted to do a little history lesson in the design and the philosophy behind Go and its creators, and then briefly do some performance stuff.
- 
+: A lot of our backend here at Datadog is written in Go.  This means a lot of us here program in it daily, but some of us use it only rarely and still others begrudgingly.  I wanted to do a little history lesson in the design and the philosophy behind Go and its creators, and then briefly do some performance stuff and talk about how aiming for simplicity and transparency can lead us to writing better programs that run faster.
 
 * The origins of Go
 
@@ -35,16 +36,12 @@ The main goal was to enable programmers at Google to write the type of software 
 
 We (datadog) shared nearly all of these goals, with one extra one, being finding a way out of performance traps in Python.
 
-: It happens that these types of programs are pretty popular these days.
-: We had similar requirements, with one extra one, which finding a way out of the performance traps in python.  More on this near the end of the talk.
 : Modern OO was hard to read (spaghetti code) and cluttered with syntax (Public Static Void)
 : Large programs in dynamic languages are hard to read because it lacks type information for human readers
 
 * Design Philosophy
 
-: So those are fine goals, but you need to have a philosophy in order to come up with something coherent.
-
-- simplicity
+- *simplicity*
 - safety (memory)
 - readability
 - orthogonality (TOOWTDI)
@@ -55,7 +52,7 @@ We (datadog) shared nearly all of these goals, with one extra one, being finding
 : orthogonality;  there should not be a lot of overlapping features of the language, it's a sign things are not simple enough
 : You can sum a lot of this up as "pragmatic minimalism"
 
-* But still modern:
+But still modern:
 
 - modules/packages
 - closures
@@ -70,25 +67,9 @@ We (datadog) shared nearly all of these goals, with one extra one, being finding
 
 .image golack.png _ 800
 
+.caption Rob Pike, [[https://commandcenter.blogspot.com/2012/06/less-is-exponentially-more.html][Less is Exponentially More]]
+
 * Making Decisions
-
-Go makes a lot of decisions for you:
-
-- how to name your files and directories
-- how packages are laid out on disk
-- how to build your code
-- the formatting style of your code (if you use gofmt)
-- your documentation style (if you use golint)
-
-* Making decisions II
-
-use gofmt and golint
-
-.image youmust.png _ 600
-
-* Making Decisions III
-
-: According to Barry SChwartz, when making a decision we go through a lot of stages:
 
 When making a decision, we:
 
@@ -101,16 +82,88 @@ When making a decision, we:
 
 .caption Barry Schwartz, "The Paradox of Choice"
 
-: This has a high overhead cost.  Think of how hard it is to even name a package.
-: Time has shown that most of the things that Go is opinionated about don't matter,
-: but their lack does.  There are zero style discussions in the Go community,
-: and consistent formatting is very widespread.  There are virtually no
-: alternative build tools, either (they all use go build as a driver); ant, maven,
-: gradle;  these are consuming developer time on the projects themselves and
-: their differences present a hurdle to developers picking up java projects using
-: unfamiliar build systems.
+: Making decisions has higher overhead cost than we think.
+: How hard is it to name a package?
+: How many times have you just been parylized as a group trying to decide
+: where to go for lunch?
+
+: I've had project ideas die on the vine because I coudln't come up with
+: a good name for them.
+
+: This can often get called analysis paralysis.  Embrace any opportunity
+: to not make a decision.
+
+: Those decisions don't even matter (well, i like fun names)
+
+* Making Decisions II
+
+Go makes a lot of decisions for you:
+
+- how to name your files and directories
+- how packages are laid out on disk
+- how to build your code
+- the formatting style of your code (if you use gofmt)
+- your documentation style (if you use golint)
+
+: Time has shown these dont matter:
+: - There are zero style discussions in the Go community,
+: - Consistent formatting is very widespread. (all code looks the same!)
+: - There are virtually no alternative build tools, either (they all use go build as a driver)
+: ant, maven, gradle;  smart people actually spend their time on this
+: they could be writing other java software
+: different systems are healthy for the overall ecosystem, but that ecosystem
+: is software development;  we don't need or want heterogeneity within
+: a single language, or worse, a single company
+
+* Making decisions III
+
+use gofmt and golint
+
+.image youmust.png _ 600
+
+* Making Decisions IV
+
+Datadog makes a lot of decisions for you:
+
+- repo layout
+- deployment/infra tools
+- rpc protocol
+- configuration
+- test harness/runner
+- deployment
+- what language(s) to use
+
+: there isn't an objectively best answer for this, same as the
+: previous page, but it is objectively better for us all to be
+: on the same page than to diverge.
+
+: of course, datadog is us, and we are free to change our minds
+: from time to time, but the important thing is to come up with
+: a set of compromises that meets our goals and then stick to
+: the plan.
+
+* Making Decisions: Exciting conclusion
+
+If you're writing a library:
+
+- stick to as many conventions as possible
+- make decisions on your users behalf
+
+: How do you learn conventions?
+: Read code.  Read the stdlib.  Pick a module in dd-go and read it.  It may be
+: great or it may be crap.  Share code you think is a good read or well
+: documented in #go
 
 * Simplicity in the small
+
+: I know what you're thinking, stop pontificating about simplicity.
+: I exist on a higher plane of reality, my middle name is monad, I am
+: eating endofunctors for breakfast.
+
+: I'm going to get started on how simplicity manifests itself in programming and
+: then why it has good survival characteristics on large projects and, most 
+: relevnant to us because we are real pragmatic grownups, good runtime 
+: characteristics as well
 
 Rob Pike's rules of programming (abridged):
 
@@ -123,9 +176,6 @@ Rob Pike's rules of programming (abridged):
 .caption Rob Pike [[https://www.lysator.liu.se/c/pikestyle.html][Notes on programming in C]]
 
 * How is this relevant?
-
-: Stop pontificating about simplicity.  I exist on a higher plane of reality.
-: My middle name is monad.
 
 Simple things tend to be _fast_
 
@@ -169,38 +219,83 @@ For CPython, `type.__call__` is implemented in C:
 
 .caption [[https://github.com/python/cpython/blob/master/Objects/typeobject.c#L911][typeobject.c]]
 
-* Measure Everything
+* Comparing Simple Things: Go
 
-Learning what to change:
+.code foo.go
 
-- profiling with *go*tool*pprof*
-- instrumentation with *expvar*
-- datadog metrics/traces
+* Comparing Simple Things: Go (Impl)
 
-Learning how to change it:
+Run `go tool compile -S` to see the asm implementation:
 
-- benchmark with *testing.B*
-- reading stdlib code
-- assembly output with *go*tool*compile*
-- phone a friend (#go in slack)
+	0x0000 00000 (foo.go:6)	TEXT	"".stuff(SB), NOSPLIT, $0-16
+	0x0000 00000 (foo.go:6)	FUNCDATA	$0, gclocals·f207267fbf96a0178e8758c6e3e0ce28(SB)
+	0x0000 00000 (foo.go:6)	FUNCDATA	$1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+	0x0000 00000 (foo.go:8)	MOVQ	$1, "".~r0+8(SP)
+	0x0009 00009 (foo.go:8)	MOVQ	$2, "".~r0+16(SP)
+	0x0012 00018 (foo.go:8)	RET
 
+* Comparing Simple Things: Go (Maps)
 
-* What to measure
+What if we wrote it like this instead:
 
-Measure things relevant to you:
+    f := map[string]int{"x": 1, "y": 2}
 
-- channel lengths
-- throughput
-- cache sizes
+We didn't need to declare a type, it's simpler right?
 
-Free stats:
+* Comparing Simple Things: Go (Maps II)
 
-- command line
-- allocation stats
-- heap stats
-- gc stats
+.image smvasm.png _ 750
 
-* Real programs have complex interactions that are hard to visualize:
+: this is one of the simpler speed traps in python
+
+* Simple made Difficult:
+
+   for x in xs:
+       x.y()
+
+What does this do?
+
+: x.y() is actually complicated;  python has to follow a number of
+: possible attribute override protocols it has to determine what the
+: name y refers to, and as we saw before calling y can also involve
+: multi-level lookup
+
+: xs can override iter, executing arbitrary code every loop
+: classic example, xs is a lazy loaded result set from sql, and y
+: does some kind of join, meaning this simple does 2*len(xs) db calls 
+
+: If you use Go, do you know how goroutines work?
+: Do you know how the Go stack works?  Sometimes details are important,
+: other times they aren't.
+
+* Simplicity in the Large
+
+- well-defined interfaces all the way down
+- close to the platform border as often as possible (shallow stacks)
+- abstractions make sense in isolation
+- specializers are usually too complex to get reused
+- context is king
+
+Assume nobody will want to reuse your code.
+
+But write it like they will.
+
+: odds are even you won't reuse your own code
+
+: the second one means they make sense outside the context they were written in;
+: if you write a "cache" type, then it's either strictly typed to the cache you
+: needed it for, or it is more reusalbe but doesn't have a bunch of weird stuff
+: you need
+
+: and don't write a complex cache that is pluggable with the weird behaviour you
+: need, because that is not real reusability that is just complexity
+
+: context is everything; `dd-go/cache/lru` has to live up to general usage constraints
+: and a level of obviousness that `dd-go/apps/foo/ejectinglru` or internal packages don't.
+
+* The wool over our eyes
+
+Real programs may be simple, but they run on complex systems:
 
 - impact of the scheduler
 - cpu cache utilization
@@ -213,8 +308,14 @@ Free stats:
 
 : These don't make a big difference in short run programs, but they can dominate daemons
 
+: Note that individually, successful versions of these programs tend to be simple
+: or transparent;  not neither.  The interaction of these systems is complex,
+: that's why Datadog exists.
+
 * In Summary
 
+- with Go, simplicity is a foundational goal
+- write opaque abstractions that are transparent about implementation
 - be deliberate up front about performance
 - but measure often anyway;  don't guess
 - "normal" code is better in the long run
