@@ -1,0 +1,231 @@
+Understanding Go
+6 Sep 2018
+Tags: go golang design philosophy
+
+Jason Moiron
+Staff Engineer
+@jason on slack
+@jmoiron on twitter
+jmoiron.net on the INTERNET
+
+* Some Quotes
+
+"[..] Everything simple is made too complicated because it's easy to fiddle with;
+everything complicated stays complicated because it's hard to fix."
+
+.caption Rob Pike
+
+"Je n’ai fait celle-ci plus longue que parce que je n’ai pas eu le loisir de la faire plus courte."
+
+.caption Blaise Pascal
+
+
+: A lot of our backend here at Datadog is written in Go.  This means a lot of us here program in it daily, but some of us use it only rarely and still others begrudgingly.  I wanted to do a little history lesson in the design and the philosophy behind Go and its creators, and then briefly do some performance stuff.
+ 
+
+* The origins of Go
+
+The main goal was to enable programmers at Google to write the type of software commonly written at Google by the types of people at Google.
+
+- networked services
+- lots of parallelism
+- scalability
+- static types (for "programming in the large")
+- usable by programmers of varying degrees of experience
+
+We (datadog) shared nearly all of these goals, with one extra one, being finding a way out of performance traps in Python.
+
+: It happens that these types of programs are pretty popular these days.
+: We had similar requirements, with one extra one, which finding a way out of the performance traps in python.  More on this near the end of the talk.
+: Modern OO was hard to read (spaghetti code) and cluttered with syntax (Public Static Void)
+: Large programs in dynamic languages are hard to read because it lacks type information for human readers
+
+* Design Philosophy
+
+: So those are fine goals, but you need to have a philosophy in order to come up with something coherent.
+
+- simplicity
+- safety (memory)
+- readability
+- orthogonality (TOOWTDI)
+
+: simplicity is a loaded term, but they wanted to avoid the complexity of c++/java
+: they wanted memory safety (c++ again)
+: readability is self explanatory
+: orthogonality;  there should not be a lot of overlapping features of the language, it's a sign things are not simple enough
+: You can sum a lot of this up as "pragmatic minimalism"
+
+* But still modern:
+
+- modules/packages
+- closures
+- interfaces
+- multiprocessing
+
+* Simple?
+
+.image keywords.png _ 800
+
+* Simplifications over C++
+
+.image golack.png _ 800
+
+* Making Decisions
+
+Go makes a lot of decisions for you:
+
+- how to name your files and directories
+- how packages are laid out on disk
+- how to build your code
+- the formatting style of your code (if you use gofmt)
+- your documentation style (if you use golint)
+
+* Making decisions II
+
+use gofmt and golint
+
+.image youmust.png _ 600
+
+* Making Decisions III
+
+: According to Barry SChwartz, when making a decision we go through a lot of stages:
+
+When making a decision, we:
+
+- figure out your goal or goals
+- evaluate its importance
+- enumarate your options
+- evaluate how likely each option will meet your goals
+- pick the winning option
+- modify your goals
+
+.caption Barry Schwartz, "The Paradox of Choice"
+
+: This has a high overhead cost.  Think of how hard it is to even name a package.
+: Time has shown that most of the things that Go is opinionated about don't matter,
+: but their lack does.  There are zero style discussions in the Go community,
+: and consistent formatting is very widespread.  There are virtually no
+: alternative build tools, either (they all use go build as a driver); ant, maven,
+: gradle;  these are consuming developer time on the projects themselves and
+: their differences present a hurdle to developers picking up java projects using
+: unfamiliar build systems.
+
+* Simplicity in the small
+
+Rob Pike's rules of programming (abridged):
+
+1. You can't tell where a program is going to spend its time.  Bottlenecks occur in surprising places.
+2. Measure.  Don't tune for speed until you've measured.
+3. Fancy algorithms are slow when n is small, and n is usually small
+4. Fancy algorithms are buggier than simple ones, and harder to implement.  Use simple algorithms and simple data structures.
+5. Data dominates.  If you've chosen the right data structures, the algorithms will almost always be self-evident.
+
+.caption Rob Pike [[https://www.lysator.liu.se/c/pikestyle.html][Notes on programming in C]]
+
+* How is this relevant?
+
+: Stop pontificating about simplicity.  I exist on a higher plane of reality.
+: My middle name is monad.
+
+Simple things tend to be _fast_
+
+- they are easy to understand
+- understanding provides transparency
+- transparency lets you use apply abstractions while maintaining efficiency
+- upstream, the focus is on improving perf for "normal" code
+
+: this builds in a big tower;  if, at the lowest layer, your abstractions are doing
+: things that are inefficient, then you will not be able to build efficient programs
+: on top of them.
+
+: these are the "performance traps" that I mentioned, that I'm going to briefly
+: touch on now
+
+: simple things are also easier to learn, and learning begets learning.
+
+* Comparing Simple Things
+
+.code foo.py
+
+This is pretty simple looking code.
+
+.caption From the excellent [[https://amir.rachum.com/blog/2016/10/03/understanding-python-class-instantiation/][Understanding Python Class Instantiation]]
+
+* Comparing Simple Things: Python
+
+What does Foo(1, 2) do? 
+
+- Method invocation triggers `Foo.__call__` 
+- Foo is type *type*, so we get `type.__call__`(Foo, ..)
+- The method `type.__call__`(Foo, ..) calls `type.__new__`(Foo, ..) to allocate new Foo f
+- f is initialized by calling `f.__init__`(*args, **kwargs)
+- f is then returned
+
+* Comparing Simple Things: Python
+
+For CPython, `type.__call__` is implemented in C:
+
+.image typeobj.png 400 _
+
+.caption [[https://github.com/python/cpython/blob/master/Objects/typeobject.c#L911][typeobject.c]]
+
+* Measure Everything
+
+Learning what to change:
+
+- profiling with *go*tool*pprof*
+- instrumentation with *expvar*
+- datadog metrics/traces
+
+Learning how to change it:
+
+- benchmark with *testing.B*
+- reading stdlib code
+- assembly output with *go*tool*compile*
+- phone a friend (#go in slack)
+
+
+* What to measure
+
+Measure things relevant to you:
+
+- channel lengths
+- throughput
+- cache sizes
+
+Free stats:
+
+- command line
+- allocation stats
+- heap stats
+- gc stats
+
+* Real programs have complex interactions that are hard to visualize:
+
+- impact of the scheduler
+- cpu cache utilization
+- impact of branch prediction (lol)
+- cost of allocation
+- interaction between your program and the OS
+- behavior of dependent networked systems (eg. dbs)
+- properties of _actual_ workload as it evolves
+- garbage collection
+
+: These don't make a big difference in short run programs, but they can dominate daemons
+
+* In Summary
+
+- be deliberate up front about performance
+- but measure often anyway;  don't guess
+- "normal" code is better in the long run
+
+: Knowing how things work isn't prematurely optimizing, it's about understanding
+your problem domain and applying your experience to not write code that does
+dumb things accidentally.
+
+: Even still, measure often, don't guess.
+
+: Go is a moving target, "normal" code will get faster, your smart way to trick
+the inliner might stop working.
+
+
